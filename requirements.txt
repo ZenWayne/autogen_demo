@@ -1,0 +1,8 @@
+google-genai
+chromadb
+vertexai
+autogen
+ag2[gemini]
+ag2[retrievechat]
+aiohttp
+
