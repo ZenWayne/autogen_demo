@@ -33,6 +33,7 @@ chromadb/
 .vscode/
 *.swp
 *.swo
+.coding
 
 # Temp files
 tmp/

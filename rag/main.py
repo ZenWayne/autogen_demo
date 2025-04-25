@@ -201,7 +201,6 @@ class CustomModelClient(ModelClient):
         
         # 初始化计数器和结果容器
         input_tokens, output_tokens = 0, 0
-        response_text = ""
         choices = []
         
         # 在方法本地处理所有流式响应，避免持有对stream对象的引用
@@ -215,57 +214,48 @@ class CustomModelClient(ModelClient):
             )
             
             # 处理流式响应
+            message = ChatCompletionMessage(
+                role="assistant",
+                content=""
+            )
+            finish_reason = ""
             for chunk in stream:
                 # 处理内容部分
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
-                    
+                    print(f"chunk.choices: {chunk.choices}")
+
                     if delta.content:
-                        response_text += delta.content
+                        message.content += delta.content  
+                    finish_reason = chunk.choices[0].finish_reason
                         
                 # 处理使用量统计
-                if chunk.usage:
-                    if hasattr(chunk.usage, "completion_tokens"):
-                        output_tokens = chunk.usage.completion_tokens
-                    if hasattr(chunk.usage, "prompt_tokens"):
-                        input_tokens = chunk.usage.prompt_tokens
-            
-            # 确保关闭流式响应
-            del stream
-            
-            # 构建最终响应
-            if response_text:
-                # 创建完整的消息对象
-                full_message = ChatCompletionMessage(
-                    role="assistant",
-                    content=response_text
+            if chunk.usage:
+                output_tokens = chunk.usage.completion_tokens
+                input_tokens = chunk.usage.prompt_tokens
+
+            choices.append(
+                Choice(
+                    index=0,
+                    message=message,
+                    finish_reason=finish_reason
                 )
-                
-                # 添加到choices中
-                choices.append(
-                    Choice(
-                        index=0,
-                        message=full_message,
-                        finish_reason="stop"
-                    )
-                )
+            )
+
                 
         except Exception as e:
             logger.error(f"流式请求出错: {e}")
-            # 在出错时仍然尝试提供部分结果
-            if response_text:
-                full_message = ChatCompletionMessage(
-                    role="assistant",
-                    content=response_text
+            full_message = ChatCompletionMessage(
+                role="assistant",
+                content=str(e)
+            )
+            choices.append(
+                Choice(
+                    index=0,
+                    message=full_message,
+                    finish_reason="stop"
                 )
-                choices.append(
-                    Choice(
-                        index=0,
-                        message=full_message,
-                        finish_reason="error"
-                    )
-                )
-        
+            )
         # 计算成本
         total_cost = (self._cost_per_output_token * output_tokens) + (self._cost_per_input_token * input_tokens)
 
@@ -284,8 +274,6 @@ class CustomModelClient(ModelClient):
             ),
             cost=total_cost
         )
-
-        #print(f"response: {response.message_retrieval_function(response)}")
         
         return response
 

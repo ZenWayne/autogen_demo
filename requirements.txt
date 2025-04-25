@@ -5,4 +5,5 @@ autogen
 ag2[gemini]
 ag2[retrievechat]
 aiohttp
-
+llama-index
+autogen-agentchat
